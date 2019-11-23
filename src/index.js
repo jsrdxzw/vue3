@@ -3,9 +3,9 @@ import VNode from './vnode'
 class Vue {
   constructor (options) {
     this.$options = options
-    const proxy = this.initDataProxy()
+    this.proxy = this.initDataProxy()
     this.initWatch()
-    return proxy
+    return this.proxy
   }
 
   $watch (key, cb) {
@@ -14,11 +14,13 @@ class Vue {
   }
 
   $mount (root) {
-    const vnode = this.$options.render(this.createElement)
+    const { mounted, render } = this.$options
+    const vnode = render.call(this.proxy, this.createElement)
     this.$root = this.createDom(vnode)
     if (root) {
       root.appendChild(this.$root)
     }
+    mounted && mounted.call(this.proxy)
     return this
   }
 
@@ -38,7 +40,9 @@ class Vue {
         return true
       },
       get: (_, key) => {
+        const methods = this.$options.methods || {}
         if (key in data) return data[key]
+        if (key in methods) return methods[key].bind(this.proxy)
         else return this[key]
       },
     })
@@ -59,10 +63,16 @@ class Vue {
         el.setAttribute(key, vnode.data[key])
       }
     }
+    const events = (vnode.data || {}).on || {}
+    for (let key in events) {
+      if (events.hasOwnProperty(key)) {
+        el.addEventListener(key, events[key])
+      }
+    }
     if (typeof vnode.children === 'string') {
       el.textContent = vnode.children
     } else {
-      vnode.children.forEach(child => {
+      vnode.children && vnode.children.forEach(child => {
         if (typeof child === 'string') {
           el.textContent = child
         } else {
