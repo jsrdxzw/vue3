@@ -13,6 +13,6 @@ describe('Watch data change', function () {
             expect(pre).toEqual(2)
             expect(val).toEqual(3)
         })
-        vm.a = 3
+        vm.a = 2
     })
 })
