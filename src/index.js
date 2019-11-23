@@ -40,8 +40,30 @@ class Vue {
 
   initDataProxy () {
     const data = this.$data = this.$options.data ? this.$options.data() : {}
-    const dataCollected = new Map()
-    return new Proxy(this, {
+    const createDataProxyHandler = path => {
+      return {
+        // 这里的get和set只是普通的对象
+        set: (obj, key, value) => {
+          // 深度监听，需要一个key来作为通知的key
+          const fullPath = path ? path + '.' + key : key
+          const pre = obj[key]
+          obj[key] = value
+          this.notifyDataChange(fullPath, pre, value)
+          return true
+        },
+        get: (obj, key) => {
+          const fullPath = path ? path + '.' + key : key
+          this.collect(fullPath)
+          if (typeof obj[key] === 'object' && obj[key] !== null) {
+            return new Proxy(obj[key], createDataProxyHandler(fullPath))
+          } else {
+            return obj[key]
+          }
+        },
+      }
+    }
+
+    const handler = {
       set: (_, key, value) => {
         const pre = data[key]
         if (pre !== value) {
@@ -57,16 +79,24 @@ class Vue {
       get: (_, key) => {
         const methods = this.$options.methods || {}
         if (key in data) {
-          if (!dataCollected.get(key)) {
-            this.$watch(key, this.update.bind(this))
-            dataCollected.set(key, true)
-          }
-          return data[key]
+          return createDataProxyHandler().get(data, key)
         }
         if (key in methods) return methods[key].bind(this.proxy)
         else return this[key]
       },
-    })
+    }
+
+    return new Proxy(this, handler)
+  }
+
+  collect (key) {
+    if (!this.collected) {
+      this.collected = {}
+    }
+    if (!this.collected[key]) {
+      this.$watch(key, this.update.bind(this))
+      this.collected[key] = true
+    }
   }
 
   initWatch () {
