@@ -16,12 +16,24 @@ class Vue {
   $mount (root) {
     const { mounted, render } = this.$options
     const vnode = render.call(this.proxy, this.createElement)
-    this.$root = this.createDom(vnode)
+    this.$el = this.createDom(vnode)
     if (root) {
-      root.appendChild(this.$root)
+      root.appendChild(this.$el)
     }
     mounted && mounted.call(this.proxy)
     return this
+  }
+
+  update () {
+    const parent = this.$el.parentNode
+    if (parent) {
+      parent.removeChild(this.$el)
+    }
+    const vnode = this.$options.render.call(this.proxy, this.createElement)
+    this.$el = this.patch(null, vnode)
+    if (parent) {
+      parent.appendChild(this.$el)
+    }
   }
 
   initDataProxy () {
@@ -41,7 +53,10 @@ class Vue {
       },
       get: (_, key) => {
         const methods = this.$options.methods || {}
-        if (key in data) return data[key]
+        if (key in data) {
+          this.$watch(key, this.update.bind(this))
+          return data[key]
+        }
         if (key in methods) return methods[key].bind(this.proxy)
         else return this[key]
       },
@@ -69,8 +84,8 @@ class Vue {
         el.addEventListener(key, events[key])
       }
     }
-    if (typeof vnode.children === 'string') {
-      el.textContent = vnode.children
+    if (!Array.isArray(vnode.children)) {
+      el.textContent = vnode.children + ''
     } else {
       vnode.children && vnode.children.forEach(child => {
         if (typeof child === 'string') {
@@ -85,6 +100,10 @@ class Vue {
 
   createElement (tag, data, children) {
     return new VNode(tag, data, children)
+  }
+
+  patch (oldVnode, newVnode) {
+    return this.createDom(newVnode)
   }
 }
 

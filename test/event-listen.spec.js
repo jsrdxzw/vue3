@@ -13,7 +13,7 @@ describe('Event test', function () {
         })
       },
     }).$mount()
-    document.body.appendChild(vm.$root)
+    document.body.appendChild(vm.$el)
     const btn = document.querySelector('.btn')
     expect(btn.tagName).toEqual('BUTTON')
     btn.click()

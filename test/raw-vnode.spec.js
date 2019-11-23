@@ -8,7 +8,7 @@ describe('Raw vnode render',function() {
       }
     }).$mount()
 
-    expect(vm.$root.tagName).toBe('DIV')
-    expect(vm.$root.textContent).toBe('hello')
+    expect(vm.$el.tagName).toBe('DIV')
+    expect(vm.$el.textContent).toBe('hello')
   })
 })
