@@ -18,6 +18,8 @@ class Vue {
     const vnode = render.call(this.proxy, this.createElement)
     this.$el = this.createDom(vnode)
     if (root) {
+      const parent = root.parentElement
+      parent.removeChild(root)
       root.appendChild(this.$el)
     }
     mounted && mounted.call(this.proxy)
@@ -25,7 +27,7 @@ class Vue {
   }
 
   update () {
-    const parent = this.$el.parentNode
+    const parent = this.$el.parentElement
     if (parent) {
       parent.removeChild(this.$el)
     }
@@ -37,7 +39,8 @@ class Vue {
   }
 
   initDataProxy () {
-    const data = this.$options.data ? this.$options.data() : {}
+    const data = this.$data = this.$options.data ? this.$options.data() : {}
+    const dataCollected = new Map()
     return new Proxy(this, {
       set: (_, key, value) => {
         const pre = data[key]
@@ -54,7 +57,10 @@ class Vue {
       get: (_, key) => {
         const methods = this.$options.methods || {}
         if (key in data) {
-          this.$watch(key, this.update.bind(this))
+          if (!dataCollected.get(key)) {
+            this.$watch(key, this.update.bind(this))
+            dataCollected.set(key, true)
+          }
           return data[key]
         }
         if (key in methods) return methods[key].bind(this.proxy)
@@ -73,6 +79,7 @@ class Vue {
 
   createDom (vnode) {
     const el = document.createElement(vnode.tag)
+    el.__vue__ = this
     for (let key in vnode.data) {
       if (vnode.data.hasOwnProperty(key)) {
         el.setAttribute(key, vnode.data[key])

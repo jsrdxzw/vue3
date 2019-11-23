@@ -18,5 +18,6 @@ describe('Event test', function () {
     expect(btn.tagName).toEqual('BUTTON')
     btn.click()
     expect(cb).toHaveBeenCalled()
+    document.body.removeChild(vm.$el)
   })
 })
