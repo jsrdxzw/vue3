@@ -24,8 +24,7 @@ class Vue {
 
   update () {
     const parent = (this.$el || {}).parentElement
-
-    const vnode = this.$options.render.call(this.proxy, this.createElement)
+    const vnode = this.$options.render.call(this.proxy, this.createElement.bind(this))
     const oldEl = this.$el
     this.$el = this.patch(null, vnode)
     if (parent) {
@@ -124,6 +123,13 @@ class Vue {
   }
 
   createDom (vnode) {
+    if (vnode.componentOptions) {
+      const componentInstance = new Vue(
+        Object.assign({}, vnode.componentOptions,
+          { propsData: vnode.data.props })).$mount()
+      vnode.componentInstance = componentInstance
+      return componentInstance.$el
+    }
     const el = document.createElement(vnode.tag)
     el.__vue__ = this
     const data = vnode.data || {}
@@ -159,6 +165,10 @@ class Vue {
   }
 
   createElement (tag, data, children) {
+    const components = this.$options.components || {}
+    if (tag in components) {
+      return new VNode(tag, data, children, components[tag])
+    }
     return new VNode(tag, data, children)
   }
 
