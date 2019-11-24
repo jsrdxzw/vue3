@@ -22,6 +22,12 @@ class Vue {
     return this
   }
 
+  $emit (...options) {
+    const [name, ...rest] = options
+    const cb = this._events[name]
+    if (cb) cb(...rest)
+  }
+
   update () {
     const parent = (this.$el || {}).parentElement
     const vnode = this.$options.render.call(this.proxy,
@@ -127,8 +133,10 @@ class Vue {
     if (vnode.componentOptions) {
       const componentInstance = new Vue(
         Object.assign({}, vnode.componentOptions,
-          { propsData: vnode.data.props })).$mount()
+          { propsData: vnode.data.props }))
       vnode.componentInstance = componentInstance
+      componentInstance._events = (vnode.data || {}).on || {}
+      componentInstance.$mount()
       return componentInstance.$el
     }
     const el = document.createElement(vnode.tag)
