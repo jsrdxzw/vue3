@@ -14,27 +14,21 @@ class Vue {
   }
 
   $mount (root) {
-    const { mounted, render } = this.$options
-    const vnode = render.call(this.proxy, this.createElement)
-    this.$el = this.createDom(vnode)
-    if (root) {
-      const parent = root.parentElement
-      parent.removeChild(root)
-      root.appendChild(this.$el)
-    }
+    this.$el = root
+    this.update()
+    const { mounted } = this.$options
     mounted && mounted.call(this.proxy)
     return this
   }
 
   update () {
-    const parent = this.$el.parentElement
-    if (parent) {
-      parent.removeChild(this.$el)
-    }
+    const parent = (this.$el || {}).parentElement
+
     const vnode = this.$options.render.call(this.proxy, this.createElement)
+    const oldEl = this.$el
     this.$el = this.patch(null, vnode)
     if (parent) {
-      parent.appendChild(this.$el)
+      parent.replaceChild(this.$el, oldEl)
     }
   }
 
@@ -90,9 +84,11 @@ class Vue {
         // only in data should be watched
         if (key in data) {
           return createDataProxyHandler().get(data, key)
+        } else if (key in methods) {
+          return methods[key].bind(this.proxy)
+        } else {
+          return this[key]
         }
-        if (key in methods) return methods[key].bind(this.proxy)
-        else return this[key]
       },
       deleteProperty: (_, key) => {
         if (key in data) {
@@ -125,12 +121,19 @@ class Vue {
   createDom (vnode) {
     const el = document.createElement(vnode.tag)
     el.__vue__ = this
-    for (let key in vnode.data) {
-      if (vnode.data.hasOwnProperty(key)) {
-        el.setAttribute(key, vnode.data[key])
+    const data = vnode.data || {}
+    const attributes = data.attrs || {}
+    for (let key in attributes) {
+      if (attributes.hasOwnProperty(key)) {
+        el.setAttribute(key, attributes[key])
       }
     }
-    const events = (vnode.data || {}).on || {}
+    const classname = data.class
+    if (classname) {
+      el.setAttribute('class', classname)
+    }
+
+    const events = data.on || {}
     for (let key in events) {
       if (events.hasOwnProperty(key)) {
         el.addEventListener(key, events[key])
