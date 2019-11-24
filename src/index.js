@@ -3,6 +3,7 @@ import VNode from './vnode'
 class Vue {
   constructor (options) {
     this.$options = options
+    this.initProps()
     this.proxy = this.initDataProxy()
     this.initWatch()
     return this.proxy
@@ -34,6 +35,9 @@ class Vue {
 
   initDataProxy () {
     const data = this.$data = this.$options.data ? this.$options.data() : {}
+    const props = this._props
+    const methods = this.$options.methods || {}
+
     const createDataProxyHandler = path => {
       return {
         // 这里的get和set只是普通的对象
@@ -80,9 +84,10 @@ class Vue {
         return true
       },
       get: (_, key) => {
-        const methods = this.$options.methods || {}
         // only in data should be watched
-        if (key in data) {
+        if (key in props) {
+          return createDataProxyHandler().get(props, key)
+        } else if (key in data) {
           return createDataProxyHandler().get(data, key)
         } else if (key in methods) {
           return methods[key].bind(this.proxy)
@@ -159,6 +164,15 @@ class Vue {
 
   patch (oldVnode, newVnode) {
     return this.createDom(newVnode)
+  }
+
+  initProps () {
+    this._props = {}
+    const { props: propsOptions, propsData } = this.$options
+    if (!propsOptions || !propsOptions.length) return
+    propsOptions.forEach(key => {
+      this._props[key] = propsData[key]
+    })
   }
 }
 
