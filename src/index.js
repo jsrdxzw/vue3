@@ -24,7 +24,8 @@ class Vue {
 
   update () {
     const parent = (this.$el || {}).parentElement
-    const vnode = this.$options.render.call(this.proxy, this.createElement.bind(this))
+    const vnode = this.$options.render.call(this.proxy,
+      this.createElement.bind(this))
     const oldEl = this.$el
     this.$el = this.patch(null, vnode)
     if (parent) {
