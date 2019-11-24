@@ -60,6 +60,15 @@ class Vue {
             return obj[key]
           }
         },
+        deleteProperty: (obj, key) => {
+          if (key in obj) {
+            const fullPath = path ? path + '.' + key : key
+            const pre = obj[key]
+            delete obj[key]
+            this.notifyDataChange(fullPath, pre)
+          }
+          return true
+        },
       }
     }
 
@@ -78,11 +87,17 @@ class Vue {
       },
       get: (_, key) => {
         const methods = this.$options.methods || {}
+        // only in data should be watched
         if (key in data) {
           return createDataProxyHandler().get(data, key)
         }
         if (key in methods) return methods[key].bind(this.proxy)
         else return this[key]
+      },
+      deleteProperty: (_, key) => {
+        if (key in data) {
+          return createDataProxyHandler().deleteProperty(data, key)
+        }
       },
     }
 
