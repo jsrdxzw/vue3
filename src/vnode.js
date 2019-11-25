@@ -7,7 +7,3 @@ export default function VNode (
   this.componentOptions = componentOptions
   this.componentInstance = componentInstance
 }
-
-export function createTextVNode (val) {
-  return new VNode(null, null, val)
-}

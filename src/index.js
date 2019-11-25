@@ -1,26 +1,32 @@
 import VNode from './vnode'
+import { Watcher, ComputedWatcher } from './watcher.js'
+import Dep from './dep.js'
+import { createProxy, setTarget, clearTarget } from './proxy.js'
 
 class Vue {
   constructor (options) {
     this.$options = options
     this.initProps()
-    this.proxy = this.initDataProxy()
+    this.proxy = createProxy(this)
+    this.initWatcher()
     this.initWatch()
     return this.proxy
   }
 
   $watch (key, cb) {
-    this.dataNotifyChain[key] = this.dataNotifyChain[key] || []
-    this.dataNotifyChain[key].push(cb)
+    if (!this.deps[key]) {
+      this.deps[key] = new Dep()
+    }
+    this.deps[key].addSub(new Watcher(this.proxy, key, cb))
   }
 
   $mount (root) {
     this.$el = root
 
     // first render
-    this._duringFirstRendering = true
-    this.update(true)
-    this._duringFirstRendering = false
+    setTarget(this)
+    this.update()
+    clearTarget()
 
     const { mounted } = this.$options
     mounted && mounted.call(this.proxy)
@@ -35,9 +41,8 @@ class Vue {
 
   /**
    * 重新渲染
-   * @param firstRender
    */
-  update (firstRender) {
+  update () {
     const parent = (this.$el || {}).parentElement
     const vnode = this.$options.render.call(this.proxy,
       this.createElement.bind(this))
@@ -48,93 +53,13 @@ class Vue {
     }
   }
 
-  initDataProxy () {
-    const data = this.$data = this.$options.data ? this.$options.data() : {}
-    const props = this._props
-    const methods = this.$options.methods || {}
-    const computed = this.$options.computed || {}
-
-    const createDataProxyHandler = path => {
-      return {
-        // 这里的get和set只是普通的对象
-        set: (obj, key, value) => {
-          // 深度监听，需要一个key来作为通知的key
-          const fullPath = path ? path + '.' + key : key
-          const pre = obj[key]
-          obj[key] = value
-          this.notifyDataChange(fullPath, pre, value)
-          return true
-        },
-        get: (obj, key) => {
-          const fullPath = path ? path + '.' + key : key
-          this.collect(fullPath)
-          if (typeof obj[key] === 'object' && obj[key] !== null) {
-            return new Proxy(obj[key], createDataProxyHandler(fullPath))
-          } else {
-            return obj[key]
-          }
-        },
-        deleteProperty: (obj, key) => {
-          if (key in obj) {
-            const fullPath = path ? path + '.' + key : key
-            const pre = obj[key]
-            delete obj[key]
-            this.notifyDataChange(fullPath, pre)
-          }
-          return true
-        },
-      }
-    }
-
-    const handler = {
-      set: (_, key, value) => {
-        const pre = data[key]
-        if (pre !== value) {
-          if (key in data) {
-            data[key] = value
-            this.notifyDataChange(key, pre, value)
-          } else {
-            this[key] = value
-          }
-        }
-        return true
-      },
-      get: (_, key) => {
-        // only in data should be watched
-        if (key in props) {
-          return createDataProxyHandler().get(props, key)
-        } else if (key in data) {
-          return createDataProxyHandler().get(data, key)
-        } else if (key in computed) {
-          return computed[key].call(this.proxy)
-        } else if (key in methods) {
-          return methods[key].bind(this.proxy)
-        } else {
-          return this[key]
-        }
-      },
-      deleteProperty: (_, key) => {
-        if (key in data) {
-          return createDataProxyHandler().deleteProperty(data, key)
-        }
-      },
-    }
-
-    return new Proxy(this, handler)
+  initWatcher () {
+    this.deps = {}
   }
 
-  collect (key) {
-    if (this._duringFirstRendering) {
-      this.$watch(key, this.update.bind(this))
-    }
-  }
-
-  initWatch () {
-    this.dataNotifyChain = {}
-  }
-
-  notifyDataChange (key, pre, val) {
-    (this.dataNotifyChain[key] || []).forEach(cb => cb(pre, val))
+  notifyChange (key, pre, val) {
+    const dep = this.deps[key]
+    dep && dep.notify({ pre, val })
   }
 
   createDom (vnode) {
@@ -200,6 +125,24 @@ class Vue {
     propsOptions.forEach(key => {
       this._props[key] = propsData[key]
     })
+  }
+
+  initWatch () {
+    const watch = this.$options.watch || {}
+    const computed = this.$options.computed || {}
+    const data = this.$data
+    for (let key in watch) {
+      if (watch.hasOwnProperty(key)) {
+        const handler = watch[key]
+        if (key in data) {
+          this.$watch(key, handler.bind(this.proxy))
+        } else if (key in computed) {
+          new ComputedWatcher(this.proxy, computed[key], handler)
+        } else {
+          throw 'i don\'t know what you wanna do'
+        }
+      }
+    }
   }
 }
 
