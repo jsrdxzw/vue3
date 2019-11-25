@@ -16,7 +16,12 @@ class Vue {
 
   $mount (root) {
     this.$el = root
-    this.update()
+
+    // first render
+    this._duringFirstRendering = true
+    this.update(true)
+    this._duringFirstRendering = false
+
     const { mounted } = this.$options
     mounted && mounted.call(this.proxy)
     return this
@@ -28,7 +33,11 @@ class Vue {
     if (cb) cb(...rest)
   }
 
-  update () {
+  /**
+   * 重新渲染
+   * @param firstRender
+   */
+  update (firstRender) {
     const parent = (this.$el || {}).parentElement
     const vnode = this.$options.render.call(this.proxy,
       this.createElement.bind(this))
@@ -43,6 +52,7 @@ class Vue {
     const data = this.$data = this.$options.data ? this.$options.data() : {}
     const props = this._props
     const methods = this.$options.methods || {}
+    const computed = this.$options.computed || {}
 
     const createDataProxyHandler = path => {
       return {
@@ -95,6 +105,8 @@ class Vue {
           return createDataProxyHandler().get(props, key)
         } else if (key in data) {
           return createDataProxyHandler().get(data, key)
+        } else if (key in computed) {
+          return computed[key].call(this.proxy)
         } else if (key in methods) {
           return methods[key].bind(this.proxy)
         } else {
@@ -112,12 +124,8 @@ class Vue {
   }
 
   collect (key) {
-    if (!this.collected) {
-      this.collected = {}
-    }
-    if (!this.collected[key]) {
+    if (this._duringFirstRendering) {
       this.$watch(key, this.update.bind(this))
-      this.collected[key] = true
     }
   }
 
