@@ -2,15 +2,20 @@ import VNode from './vnode'
 import { Watcher, ComputedWatcher } from './watcher.js'
 import Dep from './dep.js'
 import { createProxy, setTarget, clearTarget } from './proxy.js'
+import { nextTick } from './util.js'
 
 class Vue {
   constructor (options) {
-    this.$options = options
+    this.$options = options || {}
     this.initProps()
     this.proxy = createProxy(this)
     this.initWatcher()
     this.initWatch()
     return this.proxy
+  }
+
+  $nextTick (cb) {
+    nextTick(cb, this.proxy)
   }
 
   $watch (key, cb) {
