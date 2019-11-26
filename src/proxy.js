@@ -1,10 +1,10 @@
 let _target = null
 
-export function createProxy (vueInstance) {
+export function createProxy ($vue) {
   function collect (key) {
     // _target is set in Watcher's constructor
     if (_target) {
-      vueInstance.$watch(key, _target.update.bind(_target))
+      $vue.$watch(key, _target.update.bind(_target))
     }
   }
 
@@ -16,7 +16,7 @@ export function createProxy (vueInstance) {
         const fullPath = path ? path + '.' + key : key
         const pre = obj[key]
         obj[key] = value
-        vueInstance.notifyChange(fullPath, pre, value)
+        $vue.notifyChange(fullPath, pre, value)
         return true
       },
       get: (obj, key) => {
@@ -33,17 +33,17 @@ export function createProxy (vueInstance) {
           const fullPath = path ? path + '.' + key : key
           const pre = obj[key]
           delete obj[key]
-          vueInstance.notifyChange(fullPath, pre)
+          $vue.notifyChange(fullPath, pre)
         }
         return true
       },
     }
   }
 
-  const data = vueInstance.$data = vueInstance.$options.data ? vueInstance.$options.data() : {}
-  const props = vueInstance._props
-  const methods = vueInstance.$options.methods || {}
-  const computed = vueInstance.$options.computed || {}
+  const data = $vue.$data = $vue.$options.data ? $vue.$options.data() : {}
+  const props = $vue._props
+  const methods = $vue.$options.methods || {}
+  const computed = $vue.$options.computed || {}
 
   const handler = {
     set: (_, key, value) => {
@@ -51,9 +51,9 @@ export function createProxy (vueInstance) {
       if (pre !== value) {
         if (key in data) {
           data[key] = value
-          vueInstance.notifyChange(key, pre, value)
+          $vue.notifyChange(key, pre, value)
         } else {
-          vueInstance[key] = value
+          $vue[key] = value
         }
       }
       return true
@@ -65,11 +65,11 @@ export function createProxy (vueInstance) {
       } else if (key in data) {
         return createDataProxyHandler().get(data, key)
       } else if (key in computed) {
-        return computed[key].call(vueInstance.proxy)
+        return computed[key].call($vue.proxy)
       } else if (key in methods) {
-        return methods[key].bind(vueInstance.proxy)
+        return methods[key].bind($vue.proxy)
       } else {
-        return vueInstance[key]
+        return $vue[key]
       }
     },
     deleteProperty: (_, key) => {
@@ -79,7 +79,7 @@ export function createProxy (vueInstance) {
     },
   }
 
-  return new Proxy(vueInstance, handler)
+  return new Proxy($vue, handler)
 }
 
 export function setTarget (target) {
