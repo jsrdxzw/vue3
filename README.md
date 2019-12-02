@@ -1,22 +1,5 @@
----
-date: 2019/11/29 10:00
-title: "Vue3 の仕組み"
-tags: Vue.js, Vue3, JavaScript
-category: web frontend
-category_name: Web/Frontend
-catch_main: "Vue3 の仕組みの話"
-catch_sub: "Vue3の簡単な実現"
-ogimage: top.png
-headerimage: header.jpg
-author: jsrdxzw
+## Vue3 realization
 
-target_window: false
-target_url: false
-published: true
-blog: techblog
----
-
-こんにちは、[Airレジ](http://m.lszzg.com/)のバックエンド(Java、Kotlin)を開発している[キョ シイ](https://www.github.com/jsrdxzw)です。
 
 Vue３はまだリリースされていないですが、公開された設計思想から先に内部の構造や仕組みなどを解析したいと思います。
 
