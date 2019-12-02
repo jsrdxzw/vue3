@@ -1,11 +1,27 @@
-## VUE 3的简易版实现
+---
+date: 2019/11/29 10:00
+title: "Vue3 の仕組み"
+tags: Vue.js, Vue3, JavaScript
+category: web frontend
+category_name: Web/Frontend
+catch_main: "Vue3 の仕組みの話"
+catch_sub: "Vue3の簡単な実現"
+ogimage: top.png
+headerimage: header.jpg
+author: jsrdxzw
 
-这是使用了Proxy特性的Vue3 简易版实现
+target_window: false
+target_url: false
+published: true
+blog: techblog
+---
 
-This is a simple realization of Vue 3
+こんにちは、[Airレジ](http://m.lszzg.com/)のバックエンド(Java、Kotlin)を開発している[キョ シイ](https://www.github.com/jsrdxzw)です。
 
-Vue3の値変更の追跡方法は`Object.defineProperty`を代わりに、ES６の特性を基づいて`Proxy`を使っています。
-Vue３は前のVue２よりほぼゼロから書き換えましたのです。
+Vue３はまだリリースされていないですが、公開された設計思想から先に内部の構造や仕組みなどを解析したいと思います。
+
+Vue3の`data binding`方法は`Object.defineProperty`を代わりに、ES６の特性に基づき、`Proxy`を使っています。
+Vue３は前のVue２バージョンアップデートよりほぼ根本的に`Typescript`で書き換えられたものです。
 
 Vue２に比べて、Vue３は以下の特徴があります：
 + もっと早い、もっと軽量的に
@@ -13,21 +29,15 @@ Vue２に比べて、Vue３は以下の特徴があります：
 + function-based apiなどの新機能の追加
 
 今回は`Proxy`をベースにして、VUE３のミニ版を実現してみました。
-開発は、TDDというプリンシプルをもとに、Vue３の基本的なファクションを開発してきました。
+開発は、TDD(Test Driven Development)という開発手法を使って、Vue３の簡単な機能を開発してきました。
 
 ### なぜTDD
 
-ソフトウェアエンジニアリングでは、私の理解では、
-完全にトップダウンのデザインなので、もはや古い方法です。
-TDDは上と下を結合したプログラミング実践であり、
-各モジュールについては、まずテスト用例を設計し、コードを書いて実現する技術です。
-TDDは以下の利点はあります：
++ 品質を保証できる、回帰テストをしやすい、開発効率を向上できます。
++ test case はもはや仕様書として扱えます。
++ トップレベルの設計後（製品設計と技術設計を含む）、ボトムからプログラミングを開始できます。
 
-+ 品質をコントロールし、回帰テストに便利で、開発効率を向上させます。
-+ test case はもはやドキュメントと扱えます
-+ トップレベルの設計後（製品設計と技術設計を含む）、ボトムアップからプログラミングを開始できます。
-
-今回は`karma`を使いました。テストケースは下の通りに書きます：
+今回は`karma`をテストフレームワークとして使いました。テストケースは下記通りです。
 
 ```javascript
 describe('Proxy test', function() {
@@ -44,12 +54,17 @@ describe('Proxy test', function() {
 })
 ```
 
-```npm test```を実行し、テスト結果は見えます。
+```npm test```を実行すれば、テスト結果を見えます。
 
 ### Proxyとは
 
-オブジェクトに扱う際に、プロパティがアクセスまたは変更されたときに変更を通知したりすることを可能にするような技術は`Object Proxy`です。
+Proxy オブジェクトは別のオブジェクトをラップし、
+プロパティやその他の読み取り/書き込みなどの操作をインターセプトします。
+必要に応じてそれらを独自に処理できるようにします。
+つまりこの特性を生かして、値の変更を検知できます。Vue３はこう実現しています。
+
 例えば：
+
 ```javascript
 const vm = {
   a: 1
@@ -72,15 +87,17 @@ console.log(proxy.a)
 // you will set value of key : a
 proxy.a = 2
 ```
-例は`vm`の代理オブジェクト(proxy)を生成し、vm中のプロパティの変動や削除を検測できました。
+
+例は`vm`の代理オブジェクト(proxy)を生成し、vm中のプロパティの変動や削除などを検知できました。
 
 ### プロパティ変動の通知(Watcher)
 
-プロパティが変わったら、ハンドル処理は必要となっています。そうすれば、
-ユーザー側がプロパティの変化にとともに、対応や処理もできるようになります。
+プロパティが定義された場合に、Vue３はハンドラーを追加してくれます。
+プロパティが変わったら、Vue３はハンドリングを行ってくれます。
 
-状態変更の自動通知としたら、Observerパターンを使うのは一般的です。
+状態変更の自動通知と言えば、Observerパターンを使うのは一般的です。
 まずは簡単なSubjectを定義します。
+
 ```javascript
 import { remove } from './util'
 
@@ -105,7 +122,7 @@ export default class Dep {
 }
 ```
 
-`data`や`props`に定義されたプロパティのkeyとそれに関連するWatcherをdepsに保存する
+`data`や`props`に定義されたプロパティのkeyとそれに関連するWatcherをdepsに保存します。
 
 ```javascript
 // propsやdataの中に定義されたプロパティ（key）とそれに関連するWatcherをdepsに保存する
@@ -117,7 +134,7 @@ $watch (key, cb) {
   }
 ```
 
-一旦プロパティの値などが更新する際に、通知メソットもinvokeされます。
+プロパティの値などが更新された場合、通知メソットもinvokeされます。
 
 ```javascript
 notifyChange (key, pre, val) {
@@ -127,6 +144,11 @@ notifyChange (key, pre, val) {
 ```
 
 ### virtual dom vs shadow dom
+
+プロパティの値などが変更された場合、Vue3はvirtual domを通じて、変更が必要となるDomだけを変更します。
+本実践では、virtual domまで実現していません。なぜかといいますと、今後`shadow dom`を使う可能性が高いことです。
+
+参考URL：
 
 1. https://develoger.com/shadow-dom-virtual-dom-889bf78ce701
 
